@@ -1,0 +1,133 @@
+[
+  {
+    "group": "Diagrams",
+    "alignment": "left",
+    "row": 2,
+    "groups": [
+      {
+        "group": "Insert",
+        "color": "warning",
+        "alignment": "left",
+        "elements": [
+          {
+            "label": "Flowchart",
+            "onclick": "insertText('flowchart TD\\n    A[Start] --> B{Decision}\\n    B -- Yes --> C[Action]\\n    B -- No --> D[End]\\n')"
+          },
+          {
+            "label": "Sequence",
+            "onclick": "insertText('sequenceDiagram\\n    participant A\\n    participant B\\n    A->>B: Request\\n    B-->>A: Response\\n')"
+          },
+          {
+            "label": "Class",
+            "onclick": "insertText('classDiagram\\n    class Animal {\\n        +String name\\n        +speak()\\n    }\\n    Animal <|-- Dog\\n')"
+          },
+          {
+            "label": "State",
+            "onclick": "insertText('stateDiagram-v2\\n    [*] --> Idle\\n    Idle --> Running : start\\n    Running --> Idle : stop\\n    Running --> [*] : finish\\n')"
+          },
+          {
+            "label": "ER",
+            "onclick": "insertText('erDiagram\\n    CUSTOMER ||--o{ ORDER : places\\n    ORDER ||--|{ LINE-ITEM : contains\\n')"
+          },
+          {
+            "label": "Gantt",
+            "onclick": "insertText('gantt\\n    title Project Plan\\n    dateFormat YYYY-MM-DD\\n    section Phase 1\\n        Task A :a1, 2024-01-01, 7d\\n        Task B :a2, after a1, 5d\\n')"
+          },
+          {
+            "label": "Pie",
+            "onclick": "insertText('pie title Distribution\\n    \"A\" : 40\\n    \"B\" : 35\\n    \"C\" : 25\\n')"
+          },
+          {
+            "label": "Mindmap",
+            "onclick": "insertText('mindmap\\n  root((Topic))\\n    Branch A\\n      Leaf 1\\n      Leaf 2\\n    Branch B\\n      Leaf 3\\n')"
+          },
+          {
+            "label": "Timeline",
+            "onclick": "insertText('timeline\\n    title History\\n    2020 : Event A\\n    2021 : Event B\\n    2022 : Event C\\n')"
+          }
+        ]
+      },
+      {
+        "group": "Direction",
+        "color": "warning",
+        "alignment": "left",
+        "elements": [
+          {
+            "label": "TD",
+            "onclick": "insertText('TD')"
+          },
+          {
+            "label": "LR",
+            "onclick": "insertText('LR')"
+          },
+          {
+            "label": "BT",
+            "onclick": "insertText('BT')"
+          },
+          {
+            "label": "RL",
+            "onclick": "insertText('RL')"
+          }
+        ]
+      },
+      {
+        "group": "Nodes",
+        "color": "warning",
+        "alignment": "left",
+        "elements": [
+          {
+            "label": "[ Box ]",
+            "onclick": "insertText('[Label]')"
+          },
+          {
+            "label": "( Round )",
+            "onclick": "insertText('(Label)')"
+          },
+          {
+            "label": "{ Diamond }",
+            "onclick": "insertText('{Label}')"
+          },
+          {
+            "label": "(( Circle ))",
+            "onclick": "insertText('((Label))')"
+          },
+          {
+            "label": "> Flag ]",
+            "onclick": "insertText('>Label]')"
+          },
+          {
+            "label": "[/ Trapezoid /]",
+            "onclick": "insertText('[/Label/]')"
+          }
+        ]
+      },
+      {
+        "group": "Edges",
+        "color": "warning",
+        "alignment": "left",
+        "elements": [
+          {
+            "label": "──►",
+            "onclick": "insertText(' --> ')"
+          },
+          {
+            "label": "───",
+            "onclick": "insertText(' --- ')"
+          },
+          {
+            "label": "··►",
+            "onclick": "insertText(' -.-> ')"
+          },
+          {
+            "label": "═══►",
+            "onclick": "insertText(' ==> ')"
+          },
+          {
+            "label": "──►| Label |",
+            "onclick": "insertText(' -->|label| ')"
+          }
+        ]
+      }
+    ]
+  }
+]

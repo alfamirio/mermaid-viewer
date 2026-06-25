@@ -1,0 +1,85 @@
+[
+  {
+    "group": "Formatting",
+    "alignment": "left",
+    "row": 2,
+    "groups": [
+      {
+        "group": "Structures",
+        "color": "warning",
+        "alignment": "left",
+        "elements": [
+          {
+            "label": "``` Code",
+            "onclick": "fmtBlock()"
+          },
+          {
+            "label": "> Quote",
+            "onclick": "fmtLine('> ')"
+          },
+          {
+            "label": "— Rule",
+            "onclick": "insertText('\\n---\\n')"
+          },
+          {
+            "label": "🔗 Link",
+            "onclick": "insertLink()"
+          },
+          {
+            "label": "— UL",
+            "onclick": "fmtLine('- ')"
+          },
+          {
+            "label": "1. OL",
+            "onclick": "fmtLine('1. ')"
+          },
+          {
+            "label": "Table",
+            "id": "btn-table"
+          }
+        ]
+      },
+      {
+        "group": "Basic",
+        "color": "warning",
+        "alignment": "left",
+        "elements": [
+          {
+            "label": "Bold",
+            "onclick": "fmt('**','**')"
+          },
+          {
+            "label": "Italic",
+            "onclick": "fmt('_','_')"
+          },
+          {
+            "label": "Strike",
+            "onclick": "fmt('~~','~~')"
+          },
+          {
+            "label": "Inline",
+            "onclick": "fmt('`','`')"
+          }
+        ]
+      },
+      {
+        "group": "Headers",
+        "color": "warning",
+        "elements": [
+          {
+            "label": "H1",
+            "onclick": "fmtLine('# ')"
+          },
+          {
+            "label": "H2",
+            "onclick": "fmtLine('## ')"
+          },
+          {
+            "label": "H3",
+            "onclick": "fmtLine('### ')"
+          }
+        ]
+      }
+    ]
+  }
+]

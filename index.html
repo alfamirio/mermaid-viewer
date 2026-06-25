@@ -10,6 +10,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
     <!-- jsPDF — required by common-input-output-markdown.js for PDF export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Mermaid — required for Mermaid diagram preview mode -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <script type="importmap">
     {
       "imports": {
@@ -484,6 +486,61 @@
         /* ── PDF progress overlay ── */
         #pdf-progress.show { display: flex !important; }
 
+        /* ── Editor-mode toggle — active = mermaid mode is on ── */
+        #btn-editor-mode.btn-toolbar-active {
+            background-color: var(--bs-warning);
+            border-color: var(--bs-warning);
+            color: #000;
+        }
+
+        /* ── Mermaid preview container ── */
+        .mermaid-preview-container {
+            display: flex;
+            justify-content: center;
+            padding: 8px 0;
+        }
+        .mermaid-preview-container svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* ── File-type badges in the sidebar ── */
+        .file-type-badge {
+            flex-shrink: 0;
+            font-size: 0.62rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            padding: 1px 4px;
+            border-radius: 3px;
+            line-height: 1.5;
+            opacity: 0.75;
+            margin-right: 2px;
+            /* sits between the name and the action buttons */
+        }
+        .file-type-markdown {
+            background: rgba(99, 160, 255, 0.18);
+            color: #7ab4ff;
+            border: 1px solid rgba(99, 160, 255, 0.3);
+        }
+        [data-bs-theme="light"] .file-type-markdown {
+            background: rgba(13, 110, 253, 0.1);
+            color: #0d6efd;
+            border: 1px solid rgba(13, 110, 253, 0.25);
+        }
+        .file-type-mermaid {
+            background: rgba(255, 193, 7, 0.15);
+            color: #ffc107;
+            border: 1px solid rgba(255, 193, 7, 0.3);
+        }
+        [data-bs-theme="light"] .file-type-mermaid {
+            background: rgba(255, 160, 0, 0.12);
+            color: #b87a00;
+            border: 1px solid rgba(255, 160, 0, 0.3);
+        }
+        /* Hide the badge while renaming so it doesn't crowd the input */
+        .file-item .file-item-rename-input ~ .file-type-badge,
+        .file-item-rename-input + .file-type-badge { display: none; }
+
     </style>
 </head>
 <body>
@@ -494,7 +551,9 @@
          TOOLBAR
     ════════════════════════════════════════ -->
     <div id="toolbar">
-        <div id="toolbar-row-1"><span class="me-1">// md viewer</span></div>
+        <div id="toolbar-row-1">
+            <span class="me-1">// md viewer</span>
+        </div>
         <div id="toolbar-row-2"></div>
     </div>
 
@@ -507,10 +566,13 @@
             <div id="sidebar-header">
                 <h6>Files</h6>
                 <div class="sidebar-actions">
-                    <button class="btn btn-outline-secondary btn-sm" title="New empty document" onclick="Sidebar.newDoc()">
+                    <button class="btn btn-outline-secondary btn-sm btn btn-info" title="New empty document" onclick="Sidebar.newDoc()">
                         <i class="bi bi-file-earmark-plus"></i>
                     </button>
-                    <button class="btn btn-outline-secondary btn-sm" title="New from template.md" onclick="Sidebar.newFromTemplate()">
+                    <button class="btn btn-outline-secondary btn-sm btn btn-danger" title="New from template markdown" onclick="Sidebar.newFromTemplate('markdown')">
+                        <i class="bi bi-file-earmark-code"></i>
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm btn btn-warning" title="New from template mermaid" onclick="Sidebar.newFromTemplate('mermaid')">
                         <i class="bi bi-file-earmark-code"></i>
                     </button>
                 </div>
@@ -573,6 +635,7 @@
 <script src="common-local-storage.js"></script>
 <script src="common-layout.js"></script>
 <script src="common-input-output-markdown.js"></script>
+<script src="common-input-output-mermaid.js"></script>
 <script src="common-input-output.js"></script>
 <script src="common-markdown.js"></script>
 <script>
@@ -584,6 +647,7 @@
     function toggleWrap()          { Layout.toggleWrap(); }
     function toggleHighlight()     { Layout.toggleHighlight(); }
     function toggleSyncScroll()    { Layout.toggleSyncScroll(); }
+    function toggleEditorMode()    { Layout.toggleEditorMode(); }
     function statusStorage()       { Store.statusStorage(); }
     function deleteLocalStorage()  { Store.deleteLocalStorage(); }
 

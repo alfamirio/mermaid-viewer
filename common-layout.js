@@ -76,7 +76,8 @@ window.Toolbar = (() => {
                     ? `btn-outline-${colorName}`
                     : `btn-${colorName}`;
                 b.className   = `btn ${btnColor} btn-sm`;
-                b.textContent = btn.label;
+                b.innerHTML   = btn.label;   // allows <b>, <i>, etc.
+                if (btn.style)   b.setAttribute('style', btn.style);
                 if (btn.id)      b.id = btn.id;
                 if (btn.onclick) b.setAttribute('onclick', btn.onclick);
                 wrapper.appendChild(b);
@@ -143,6 +144,32 @@ window.Toolbar = (() => {
         _syncThemeButton();
     }
 
+    /* ── initRow2 ─────────────────────────────────────────────────────── */
+    /** Fetches a row-2-only JSON and replaces #toolbar-row-2 without
+     *  touching row 1. The JSON is an array of groups with row:2. */
+    async function initRow2(jsonUrl) {
+        const res    = await fetch(jsonUrl);
+        const config = await res.json();
+
+        const row2 = document.getElementById('toolbar-row-2');
+        row2.innerHTML = '';
+
+        const row2Groups = config.filter(g => g.row === 2);
+        row2Groups.forEach(group => {
+            const subGroups = group.groups || [];
+            let first = true;
+            subGroups.forEach(sub => {
+                if (!first) row2.appendChild(_sep());
+                first = false;
+                row2.appendChild(_buildGroup(sub));
+            });
+            if (group.elements && group.elements.length) {
+                if (!first) row2.appendChild(_sep());
+                row2.appendChild(_buildGroup(group));
+            }
+        });
+    }
+
     /* ── _syncThemeButton ─────────────────────────────────────────────── */
     function _syncThemeButton() {
         const btn = document.getElementById('btn-theme-toolbar');
@@ -160,7 +187,7 @@ window.Toolbar = (() => {
         _syncThemeButton();
     }
 
-    return { init, toggleTheme };
+    return { init, initRow2, toggleTheme };
 
 })();
 
@@ -203,7 +230,7 @@ window.Layout = (() => {
         if (!showPreview) preview.style.display  = 'none';
 
         const cfg   = Store.loadConfig();
-        const saved = cfg.splitSizes || [15, 42, 43];
+        const saved = cfg.splitSizes || [15, 50, 35];
 
         const panes    = [];
         const sizes    = [];
@@ -326,6 +353,39 @@ window.Layout = (() => {
         _rebuildSplit(cfg.sidebar !== false, mode);
     }
 
+    /* ── toggleEditorMode ────────────────────────────────────────────────
+       Switches between 'markdown' and 'mermaid' preview modes.
+       Only row 2 of the toolbar is rebuilt — row 1 is shared and stays. */
+    function toggleEditorMode() {
+        const cfg     = Store.loadConfig();
+        const current = cfg.editorMode || 'markdown';
+        const next    = current === 'markdown' ? 'mermaid' : 'markdown';
+        Store.saveConfig({ editorMode: next });
+
+        // Swap row 2 only — row 1 is identical for both modes
+        const row2Json = next === 'mermaid'
+            ? 'toolbar-mermaid-row2.json'
+            : 'toolbar.json';           // full JSON: initRow2 filters to row:2 entries
+        Toolbar.initRow2(row2Json);
+
+        _syncEditorModeButton(next);
+
+        // Re-render preview with the new mode
+        if (typeof window.updatePreview === 'function') {
+            window.updatePreview(window.cmView?.state.doc.toString() ?? '');
+        }
+    }
+
+    /* ── _syncEditorModeButton ──────────────────────────────────────────── */
+    function _syncEditorModeButton(mode) {
+        const btn = document.getElementById('btn-editor-mode');
+        if (!btn) return;
+        const isMermaid = mode === 'mermaid';
+        btn.textContent = isMermaid ? '◇ Markdown' : '◈ Mermaid';
+        btn.title       = isMermaid ? 'Switch to Markdown mode' : 'Switch to Mermaid diagram mode';
+        btn.classList.toggle('btn-toolbar-active', isMermaid);
+    }
+
     /* ── init ─────────────────────────────────────────────────────────── */
     function init() {
         const cfg       = Store.loadConfig();
@@ -343,10 +403,13 @@ window.Layout = (() => {
         // Seed the live sync-scroll flag read by the module scroll listeners
         window._syncScroll = cfg.syncScroll;
 
+        // Reflect persisted editor mode
+        _syncEditorModeButton(cfg.editorMode || 'markdown');
+
         setViewMode(cfg.viewMode || 'both');
     }
 
-    return { init, toggleSidebar, setViewMode, toggleWrap, toggleHighlight, toggleSyncScroll };
+    return { init, toggleSidebar, setViewMode, toggleWrap, toggleHighlight, toggleSyncScroll, toggleEditorMode };
 
 })();
 
@@ -361,6 +424,21 @@ window.Sidebar = (() => {
 
     /* ── DOM helper ───────────────────────────────────────────────────── */
     const $l = () => document.getElementById('file-list');
+
+    /* ── _docTypeMeta ─────────────────────────────────────────────────────
+       Returns the icon class and badge markup for a given doc type.       */
+    function _docTypeMeta(type) {
+        if (type === 'mermaid') {
+            return {
+                icon:  'bi-diagram-3',
+                badge: `<span class="file-type-badge file-type-mermaid" title="Mermaid diagram">MMD</span>`,
+            };
+        }
+        return {
+            icon:  'bi-file-earmark-text',
+            badge: `<span class="file-type-badge file-type-markdown" title="Markdown">MD</span>`,
+        };
+    }
 
     /* ── render ───────────────────────────────────────────────────────── */
     function render() {
@@ -379,13 +457,19 @@ window.Sidebar = (() => {
         }
 
         docs.forEach(meta => {
+            // Load content to detect type (docs are small; this is cheap)
+            const doc  = Store.loadDoc(meta.id);
+            const type = Store.detectDocType(doc?.content ?? '');
+            const { icon, badge } = _docTypeMeta(type);
+
             const li = document.createElement('li');
             li.className  = 'file-item' + (meta.id === activeId ? ' active' : '');
             li.dataset.id = meta.id;
 
             li.innerHTML = `
-                <i class="bi bi-file-earmark-text file-item-icon"></i>
+                <i class="bi ${icon} file-item-icon"></i>
                 <span class="file-item-name" title="${Store.escapeHtml(meta.title)}">${Store.escapeHtml(meta.title)}</span>
+                ${badge}
                 <div class="file-item-actions">
                     <button class="file-item-btn" title="Rename" data-action="rename">
                         <i class="bi bi-pencil"></i>
@@ -472,7 +556,7 @@ window.Sidebar = (() => {
         init,
         render,
         newDoc:          () => Store.newDoc(),
-        newFromTemplate: () => Store.newDocFromTemplateMd(),
+        newFromTemplate: (p) => Store.newDocFromTemplateMd(p),
     };
 
 })(); // end Sidebar

@@ -50,7 +50,8 @@
         toc:         true,
         sidebar:     true,
         viewMode:    'both',
-        splitSizes:  [10, 60, 30],
+        splitSizes:  [15, 50, 35],
+        editorMode:  'markdown',   // 'markdown' | 'mermaid'
         custom:      {},
     };
 
@@ -565,13 +566,36 @@
     }
 
     /**
+     * Return the next available "Untitled N" title.
+     *
+     * Scans existing doc titles for the pattern /^Untitled( \d+)?$/i and
+     * picks the lowest positive integer not already in use.
+     * Results: "Untitled 1", "Untitled 2", … (never bare "Untitled").
+     */
+    function _nextUntitledName() {
+        const used = new Set(
+            _getIndex()
+                .map(id => lsGet(docKey(id))?.title ?? '')
+                .map(t => {
+                    const m = t.match(/^Untitled(?: (\d+))?$/i);
+                    if (!m) return null;
+                    return m[1] ? parseInt(m[1], 10) : 0; // bare "Untitled" → 0
+                })
+                .filter(n => n !== null)
+        );
+        let n = 1;
+        while (used.has(n)) n++;
+        return `Untitled ${n}`;
+    }
+
+    /**
      * Create a blank doc, activate it, clear the editor.
      * Emits 'doc:new' so the sidebar can trigger rename mode.
      * @returns {Doc|null}
      */
     function newDoc() {
         autoSave();
-        const doc = saveDoc({ title: 'Untitled', content: '' });
+        const doc = saveDoc({ title: _nextUntitledName(), content: '' });
         if (!doc) return null;
         setActiveDocId(doc.id);
         loadIntoEditor('');
@@ -584,13 +608,13 @@
      * activate it, load into editor.
      * Emits 'doc:new' so the sidebar can trigger rename mode.
      */
-    function newDocFromTemplateMd() {
+    function newDocFromTemplateMd(type) {
         autoSave();
-        fetch('template.md')
+        fetch(type == 'mermaid' ? 'template-mermaid.md' : 'template-markdown.md')
             .then(r => r.ok ? r.text() : '')
             .catch(() => '')
             .then(content => {
-                const doc = saveDoc({ title: 'Untitled', content });
+                const doc = saveDoc({ title: _nextUntitledName(), content });
                 if (!doc) return;
                 setActiveDocId(doc.id);
                 loadIntoEditor(content);
@@ -704,6 +728,72 @@
     }
 
     /* ════════════════════════════════════════
+       CONTENT TYPE DETECTION
+       Inspects raw document content and returns
+       'mermaid' or 'markdown'.
+    ════════════════════════════════════════ */
+
+    /**
+     * Detect whether a document's content is a Mermaid diagram or Markdown.
+     *
+     * Strategy: strip leading whitespace/blank lines, then test the first
+     * meaningful line against the set of Mermaid diagram-type keywords.
+     * Mermaid diagrams always begin with one of these keywords (optionally
+     * followed by a direction token like LR / TD, or nothing at all).
+     *
+     * @param {string} content  – raw document text
+     * @returns {'mermaid'|'markdown'}
+     */
+    function detectDocType(content) {
+        if (!content || typeof content !== 'string') return 'markdown';
+
+        // Walk lines until we find a non-empty one
+        const lines = content.split('\n');
+        let firstLine = '';
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed) { firstLine = trimmed.toLowerCase(); break; }
+        }
+        if (!firstLine) return 'markdown';
+
+        // Official Mermaid diagram types (as of Mermaid v10)
+        const MERMAID_KEYWORDS = [
+            'graph',           // graph TD / graph LR / …
+            'flowchart',       // flowchart TD
+            'sequencediagram', // sequenceDiagram
+            'classdiagram',    // classDiagram
+            'statediagram',    // stateDiagram / stateDiagram-v2
+            'statediagram-v2',
+            'erdiagram',       // erDiagram
+            'gantt',
+            'pie',
+            'journey',         // user journey
+            'gitgraph',
+            'mindmap',
+            'timeline',
+            'sankey-beta',
+            'quadrantchart',
+            'xychart-beta',
+            'block-beta',
+            'architecture-beta',
+            'requirementdiagram',
+            'c4context',
+            'c4container',
+            'c4component',
+            'c4dynamic',
+            'c4deployment',
+        ];
+
+        // Extract the leading keyword (first word) and optionally the second
+        // word so "graph TD", "graph LR", "pie title …" all match correctly.
+        const firstWord = firstLine.split(/\s+/)[0];
+
+        if (MERMAID_KEYWORDS.includes(firstWord)) return 'mermaid';
+
+        return 'markdown';
+    }
+
+    /* ════════════════════════════════════════
        PUBLIC API
     ════════════════════════════════════════ */
 
@@ -751,6 +841,7 @@
         // Utilities
         wordCount: _wordCount,
         escapeHtml: _escapeHtml,
+        detectDocType,
 
         // Event bus
         on,

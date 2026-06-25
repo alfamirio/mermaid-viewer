@@ -36,9 +36,14 @@
         "onclick": "exportPdf()"
       },
       {
-        "label": "↓ Image",
+        "label": "↓ WEBP",
         "id": "btn-image",
-        "onclick": "exportImage()"
+        "onclick": "exportMermaidWebp()"
+      },
+      {
+        "label": "↓ PNG",
+        "id": "btn-image",
+        "onclick": "exportMermaidPng()"
       },
       {
         "label": "Copy",
@@ -85,6 +90,19 @@
         "label": "Theme",
         "id": "btn-theme-toolbar",
         "onclick": "toggleTheme()"
+      }
+    ]
+  },
+  {
+    "group": "Mode",
+    "color": "warning",
+    "row": 1,
+    "type": "toggle",
+    "elements": [
+      {
+        "label": "◈ Mermaid",
+        "id": "btn-editor-mode",
+        "onclick": "toggleEditorMode()"
       }
     ]
   },
@@ -155,7 +173,7 @@
         "alignment": "left",
         "elements": [
           {
-            "label": "``` Code",
+            "label": "``` Code { }",
             "onclick": "fmtBlock()"
           },
           {
@@ -190,19 +208,20 @@
         "alignment": "left",
         "elements": [
           {
-            "label": "Bold",
+            "label": "<b>Bold</b>",
             "onclick": "fmt('**','**')"
           },
           {
-            "label": "Italic",
+            "label": "<i>Italic</i>",
             "onclick": "fmt('_','_')"
           },
           {
             "label": "Strike",
+            "style": "text-decoration:line-through",
             "onclick": "fmt('~~','~~')"
           },
           {
-            "label": "Inline",
+            "label": "Inline { }",
             "onclick": "fmt('`','`')"
           }
         ]

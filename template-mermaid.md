@@ -1,0 +1,6 @@
+flowchart LR
+    A([Start]) --> B{Is it working?}
+    B -- Yes --> C[Ship it]
+    B -- No  --> D[Debug]
+    D --> E[Fix the bug]
+    E --> B

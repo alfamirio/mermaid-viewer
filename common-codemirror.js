@@ -256,8 +256,7 @@
             // programmatic loads (loadIntoEditor). _fireInput is still
             // fired for non-programmatic changes so external 'input'
             // listeners (autosave, status counts, etc.) keep working.
-            const el = document.getElementById('preview-content');
-            if (el && window.marked) el.innerHTML = window.marked.parse(update.state.doc.toString());
+            window.updatePreview(update.state.doc.toString());
             if (!update.transactions.some(tr => tr.annotation(programmatic))) {
               window.editor._fireInput();
             }
@@ -346,6 +345,62 @@
     if (highlight !== undefined) window.editor.setHighlight(highlight);
   };
 
+  // ── updatePreview ────────────────────────────────────────────────────────
+  // Single entry-point for rendering editor content into #preview-content.
+  // Respects the editorMode stored in config ('markdown' | 'mermaid').
+  // Called from the EditorView.updateListener above and from Layout.setEditorMode().
+  window.updatePreview = function (text) {
+    const el = document.getElementById('preview-content');
+    if (!el) return;
+
+    const cfg  = window.Store?.loadConfig() ?? {};
+    const mode = cfg.editorMode || 'markdown';
+
+    if (mode === 'mermaid') {
+      el.innerHTML = '';
+      const container = document.createElement('div');
+      container.className = 'mermaid-preview-container';
+
+      if (!text.trim()) {
+        container.innerHTML = '<p style="opacity:0.5;font-size:0.85rem;">Start typing a Mermaid diagram…</p>';
+        el.appendChild(container);
+        return;
+      }
+
+      // Wrap bare diagram source in a div; mermaid.render needs an id
+      const id = 'mermaid-out-' + Date.now();
+      const isDark = document.documentElement.getAttribute('data-bs-theme') !== 'light';
+
+      if (window.mermaid) {
+        // Re-init so the theme matches the current BS theme
+        window.mermaid.initialize({
+          startOnLoad: false,
+          theme: isDark ? 'dark' : 'default',
+          securityLevel: 'loose',
+        });
+
+        window.mermaid.render(id, text.trim())
+          .then(({ svg }) => {
+            container.innerHTML = svg;
+            el.appendChild(container);
+          })
+          .catch(err => {
+            container.innerHTML = `<pre style="color:#e74c3c;white-space:pre-wrap;font-size:0.82rem;">${
+              String(err?.message || err).replace(/</g, '&lt;')
+            }</pre>`;
+            el.appendChild(container);
+          });
+      } else {
+        container.innerHTML = '<p style="color:#e74c3c;font-size:0.85rem;">Mermaid library not loaded.</p>';
+        el.appendChild(container);
+      }
+
+    } else {
+      // Default: Markdown
+      if (window.marked) el.innerHTML = window.marked.parse(text);
+    }
+  };
+
   // Keep wrap/highlight in sync when the Bootstrap theme attribute flips.
   // setHighlight(true) re-reads the *current* theme via _currentHighlightExt(),
   // so this also swaps the syntax-highlight palette (dark ⇄ light colours)
@@ -354,4 +409,8 @@
     const cfg = window.Store?.loadConfig() ?? { wrap: true, highlight: true };
     window.editor.setWrap(cfg.wrap !== false);
     window.editor.setHighlight(cfg.highlight !== false);
+    // Re-render preview so mermaid picks up the new theme
+    if (typeof window.updatePreview === 'function') {
+      window.updatePreview(window.cmView?.state.doc.toString() ?? '');
+    }
   }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-bs-theme'] });
