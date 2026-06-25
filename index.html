@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Markdown Editor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/split.js/1.6.0/split.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
+    <!-- jsPDF — required by common-input-output-markdown.js for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script type="importmap">
+    {
+      "imports": {
+        "@codemirror/view":              "https://esm.sh/@codemirror/view@6",
+        "@codemirror/state":             "https://esm.sh/@codemirror/state@6",
+        "@codemirror/language":          "https://esm.sh/@codemirror/language@6",
+        "@codemirror/commands":          "https://esm.sh/@codemirror/commands@6",
+        "@codemirror/lang-markdown":     "https://esm.sh/@codemirror/lang-markdown@6",
+        "@codemirror/language-data":     "https://esm.sh/@codemirror/language-data@6",
+        "@lezer/highlight":              "https://esm.sh/@lezer/highlight@1"
+      }
+    }
+    </script>
+    <style>
+        /* ── Root layout ── */
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* ── Toolbar ── */
+        #toolbar {
+            flex-shrink: 0;
+            background-color: var(--bs-tertiary-bg);
+            border-bottom: 1px solid var(--bs-border-color);
+        }
+
+        #toolbar-row-1,
+        #toolbar-row-2 {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 4px;
+            padding: 5px 10px;
+            min-height: 38px;
+        }
+
+        #toolbar-row-1 {
+            border-bottom: 1px solid var(--bs-border-color);
+            justify-content: flex-start;
+        }
+
+        .toolbar-spacer {
+            flex: 1;
+        }
+
+        /* ── Main area ── */
+        #main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        /* ── Sidebar ── */
+        #sidebar {
+            background-color: var(--bs-secondary-bg);
+            border-right: 1px solid var(--bs-border-color);
+            overflow-y: auto;
+            padding: 12px;
+            font-size: 0.875rem;
+            min-width: 120px;
+        }
+
+        #sidebar h6 {
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--bs-secondary-color);
+            margin-bottom: 8px;
+        }
+
+        /* ── Editor pane ── */
+        #cm-host {
+            overflow: hidden;
+            height: 100%;
+            min-width: 200px;
+            background-color: var(--bs-body-bg);
+        }
+
+        #cm-host .cm-editor {
+            height: 100%;
+            font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+            font-size: 0.9rem;
+        }
+        #cm-host .cm-scroller {
+            overflow: auto;
+        }
+
+        /* Light theme — Bootstrap colours drive the editor chrome */
+        [data-bs-theme="light"] #cm-host .cm-editor {
+            background-color: var(--bs-body-bg);
+            color: var(--bs-body-color);
+        }
+        [data-bs-theme="light"] #cm-host .cm-gutters {
+            background-color: var(--bs-secondary-bg);
+            border-right: 1px solid var(--bs-border-color);
+            color: var(--bs-secondary-color);
+        }
+        [data-bs-theme="light"] #cm-host .cm-activeLineGutter {
+            background-color: var(--bs-tertiary-bg);
+            border-left: 3px solid var(--bs-primary);
+            font-weight: 700;
+        }
+        [data-bs-theme="light"] #cm-host .cm-activeLine {
+            background-color: var(--bs-tertiary-bg);
+            border-top: 1px solid var(--bs-border-color);
+            border-bottom: 1px solid var(--bs-border-color);
+        }
+        /* See common-codemirror.js: .cm-activeLine paints on top of the
+           selection layer, so on the caret's own line it can hide the
+           selection highlight. #cm-host gets a has-selection class while
+           any real (non-collapsed) selection exists; drop the active-line
+           fill during that time so the selection colour always wins. */
+        [data-bs-theme="light"] #cm-host.has-selection .cm-activeLine {
+            background-color: transparent;
+            border-top: 1px solid transparent;
+            border-bottom: 1px solid transparent;
+        }
+        [data-bs-theme="light"] #cm-host .cm-cursor {
+            border-left-color: var(--bs-body-color);
+        }
+        [data-bs-theme="light"] #cm-host .cm-selectionBackground {
+            background-color: #8fc1ff !important;
+        }
+
+        /* Dark theme — unset every override so oneDark controls all colours */
+        [data-bs-theme="dark"] #cm-host .cm-editor {
+            background-color: unset;
+            color: unset;
+        }
+        [data-bs-theme="dark"] #cm-host .cm-gutters {
+            background-color: unset;
+            border-right: unset;
+            color: unset;
+        }
+        [data-bs-theme="dark"] #cm-host .cm-activeLineGutter,
+        [data-bs-theme="dark"] #cm-host .cm-activeLine {
+            background-color: unset;
+        }
+        [data-bs-theme="dark"] #cm-host .cm-cursor {
+            border-left-color: unset;
+        }
+        /* Selection is intentionally NOT reset to "unset" here — that was
+           wiping the selection colour out completely in dark mode. It's left
+           to common-codemirror.js's selectionTheme, which is tuned to read
+           against the oneDark-style token colours. */
+
+        /* ── Preview pane ── */
+        #preview {
+            overflow: auto;
+            height: 100%;
+            padding: 20px 28px;
+            background-color: var(--bs-body-bg);
+            border-left: 1px solid var(--bs-border-color);
+            min-width: 200px;
+        }
+
+        /* ── Markdown preview typography ── */
+        #preview-content {
+            max-width: 720px;
+            margin: 0 auto;
+            line-height: 1.7;
+            color: var(--bs-body-color);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        #preview-content h1,
+        #preview-content h2,
+        #preview-content h3,
+        #preview-content h4,
+        #preview-content h5,
+        #preview-content h6 {
+            margin-top: 1.4em;
+            margin-bottom: 0.5em;
+            font-weight: 600;
+            line-height: 1.3;
+            color: var(--bs-emphasis-color);
+        }
+        #preview-content h1 { font-size: 1.9rem; border-bottom: 2px solid var(--bs-border-color); padding-bottom: 0.3em; }
+        #preview-content h2 { font-size: 1.5rem; border-bottom: 1px solid var(--bs-border-color); padding-bottom: 0.25em; }
+        #preview-content h3 { font-size: 1.2rem; }
+
+        #preview-content p { margin: 0.8em 0; }
+
+        #preview-content a { color: var(--bs-link-color); text-decoration: underline; }
+
+        #preview-content code {
+            font-family: 'Fira Code', 'Cascadia Code', Consolas, monospace;
+            font-size: 0.875em;
+            background: var(--bs-tertiary-bg);
+            border: 1px solid var(--bs-border-color);
+            border-radius: 4px;
+            padding: 0.15em 0.4em;
+        }
+
+        #preview-content pre {
+            background: var(--bs-tertiary-bg);
+            border: 1px solid var(--bs-border-color);
+            border-radius: 6px;
+            padding: 1em 1.2em;
+            overflow-x: auto;
+            margin: 1em 0;
+        }
+        #preview-content pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 0.875rem;
+        }
+
+        #preview-content blockquote {
+            border-left: 4px solid var(--bs-primary);
+            margin: 1em 0;
+            padding: 0.5em 1em;
+            background: var(--bs-tertiary-bg);
+            border-radius: 0 4px 4px 0;
+            color: var(--bs-secondary-color);
+        }
+
+        #preview-content ul,
+        #preview-content ol {
+            padding-left: 1.8em;
+            margin: 0.6em 0;
+        }
+        #preview-content li { margin: 0.3em 0; }
+
+        #preview-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1em 0;
+            font-size: 0.9em;
+        }
+        #preview-content th,
+        #preview-content td {
+            border: 1px solid var(--bs-border-color);
+            padding: 0.5em 0.8em;
+            text-align: left;
+        }
+        #preview-content th {
+            background: var(--bs-secondary-bg);
+            font-weight: 600;
+        }
+
+        #preview-content hr {
+            border: none;
+            border-top: 2px solid var(--bs-border-color);
+            margin: 1.5em 0;
+        }
+
+        #preview-content img { max-width: 100%; border-radius: 4px; }
+
+        /* ── Split gutters ── */
+        .gutter {
+            background-color: var(--bs-border-color);
+            background-repeat: no-repeat;
+            background-position: 50%;
+            transition: background-color 0.15s;
+            flex-shrink: 0;
+        }
+        .gutter:hover { background-color: var(--bs-primary); }
+        .gutter.gutter-horizontal {
+            cursor: col-resize;
+            width: 4px !important;
+        }
+
+        /* ── Toolbar groups ── */
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .toolbar-sep {
+            width: 1px;
+            height: 22px;
+            background-color: var(--bs-border-color);
+            margin: 0 4px;
+            flex-shrink: 0;
+        }
+
+        /* ── Toolbar buttons ──
+           Toggle groups (Viewer/View-mode/Sidebar/Theme/Config) render as
+           outline buttons; normal action groups (Viewer actions, Status
+           delete, Formatting) render filled. Both stay fully legible:
+           outline buttons keep full-strength text/border by default, and
+           filled buttons get a slight idle dim so the toolbar isn't a wall
+           of solid colour, with full opacity on hover/active/focus. */
+        #toolbar .btn-sm {
+            font-size:      0.80rem;
+            font-weight:    700;
+            padding:        3px 3px;
+            line-height:    1.5;
+        }
+        #toolbar .btn:not(.btn-outline-secondary):not(.btn-outline-primary):not(.btn-outline-success):not(.btn-outline-warning):not(.btn-outline-danger):not(.btn-outline-info):not(:hover):not(:active):not(:focus) {
+            opacity: 0.85;
+        }
+
+        /* ── Active/toggled state (outline toggle buttons only) ──
+           Filling the button with its own colour (and flipping text to
+           white/near-black for contrast) makes "on" unmistakable against
+           the outline "off" state, in both light and dark theme. */
+        #toolbar .btn-toolbar-active {
+            opacity:    1 !important;
+            box-shadow: 0 0 0 1px var(--bs-btn-border-color, currentColor);
+        }
+        #toolbar .btn-outline-secondary.btn-toolbar-active {
+            background-color: var(--bs-secondary-color) !important;
+            border-color:      var(--bs-secondary-color) !important;
+            color:             var(--bs-body-bg) !important;
+        }
+        #toolbar .btn-outline-primary.btn-toolbar-active,
+        #toolbar .btn-outline-info.btn-toolbar-active {
+            background-color: var(--bs-primary) !important;
+            border-color:      var(--bs-primary) !important;
+            color:             #fff !important;
+        }
+        #toolbar .btn-outline-success.btn-toolbar-active {
+            background-color: var(--bs-success) !important;
+            border-color:      var(--bs-success) !important;
+            color:             #fff !important;
+        }
+        #toolbar .btn-outline-warning.btn-toolbar-active {
+            background-color: var(--bs-warning) !important;
+            border-color:      var(--bs-warning) !important;
+            color:             #000 !important;
+        }
+        #toolbar .btn-outline-danger.btn-toolbar-active {
+            background-color: var(--bs-danger) !important;
+            border-color:      var(--bs-danger) !important;
+            color:             #fff !important;
+        }
+        #toolbar .btn-toolbar-active:hover {
+            filter: brightness(1.12);
+        }
+
+        /* ── Status badges — Bootstrap badge bg-<color> + two-line layout ── */
+        .toolbar-status-badge {
+            display:         inline-flex;
+            flex-direction:  column;
+            align-items:     center;
+            justify-content: center;
+            line-height:     1.15;
+            gap:             1px;
+            min-width:       56px;
+            padding:         3px 10px;
+            border-radius:   5px;
+            white-space:     nowrap;
+            user-select:     none;
+            font-size:       unset; /* reset badge default */
+        }
+        .stat-label {
+            font-size:      0.58rem;
+            font-weight:    700;
+            letter-spacing: 0.09em;
+            text-transform: uppercase;
+            opacity:        0.75;
+        }
+        .stat-value {
+            font-size:            0.85rem;
+            font-weight:          600;
+            font-variant-numeric: tabular-nums;
+            letter-spacing:       0.01em;
+        }
+
+        /* ── Sidebar file list ── */
+        #sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        #sidebar-header h6 { margin-bottom: 0; }
+
+        .sidebar-actions {
+            display: flex;
+            gap: 2px;
+        }
+        .sidebar-actions .btn {
+            padding: 1px 5px;
+            font-size: 0.7rem;
+            line-height: 1.4;
+            border-radius: 4px;
+        }
+
+        #file-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 6px;
+            border-radius: 5px;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            transition: background 0.1s;
+        }
+        .file-item:hover { background: var(--bs-tertiary-bg); }
+        .file-item.active {
+            background: var(--bs-primary);
+            color: #fff;
+        }
+
+        .file-item-icon {
+            flex-shrink: 0;
+            opacity: 0.55;
+            font-size: 0.85rem;
+        }
+        .file-item.active .file-item-icon { opacity: 0.85; }
+
+        .file-item-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 0.82rem;
+        }
+
+        /* Inline action buttons (rename / delete) */
+        .file-item-actions {
+            display: flex;
+            gap: 2px;
+            flex-shrink: 0;
+            opacity: 0;
+            transition: opacity 0.1s;
+        }
+        .file-item:hover .file-item-actions,
+        .file-item.active .file-item-actions { opacity: 1; }
+
+        .file-item-btn {
+            background: none;
+            border: none;
+            padding: 2px 3px;
+            line-height: 1;
+            cursor: pointer;
+            color: inherit;
+            border-radius: 3px;
+            opacity: 0.55;
+            display: flex;
+            align-items: center;
+            font-size: 0.8rem;
+        }
+        .file-item-btn:hover { opacity: 1; background: rgba(128,128,128,0.2); }
+        .file-item-btn.danger:hover { color: #dc3545; background: rgba(220,53,69,0.1); }
+
+        /* Inline rename input */
+        .file-item-rename-input {
+            flex: 1;
+            font-size: 0.82rem;
+            padding: 0 3px;
+            border: 1px solid var(--bs-primary);
+            border-radius: 3px;
+            background: var(--bs-body-bg);
+            color: var(--bs-body-color);
+            outline: none;
+            min-width: 0;
+        }
+
+        /* ── PDF progress overlay ── */
+        #pdf-progress.show { display: flex !important; }
+
+    </style>
+</head>
+<body>
+
+<div id="app">
+
+    <!-- ════════════════════════════════════════
+         TOOLBAR
+    ════════════════════════════════════════ -->
+    <div id="toolbar">
+        <div id="toolbar-row-1"><span class="me-1">// md viewer</span></div>
+        <div id="toolbar-row-2"></div>
+    </div>
+
+    <!-- ════════════════════════════════════════
+         MAIN: sidebar | editor | preview
+    ════════════════════════════════════════ -->
+    <div id="main">
+        <!-- Sidebar -->
+        <div id="sidebar">
+            <div id="sidebar-header">
+                <h6>Files</h6>
+                <div class="sidebar-actions">
+                    <button class="btn btn-outline-secondary btn-sm" title="New empty document" onclick="Sidebar.newDoc()">
+                        <i class="bi bi-file-earmark-plus"></i>
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" title="New from template.md" onclick="Sidebar.newFromTemplate()">
+                        <i class="bi bi-file-earmark-code"></i>
+                    </button>
+                </div>
+            </div>
+            <ul id="file-list"></ul>
+        </div>
+
+        <!-- Editor (CodeMirror host) -->
+        <div id="cm-host"></div>
+
+        <!-- Preview -->
+        <div id="preview">
+            <div id="preview-content">
+                <!-- Rendered markdown injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════
+         PDF EXPORT HELPERS
+         • #pdf-progress   — modal shown while the PDF is being built
+         • #pdf-render-root — off-screen scratch space used by the PDF engine
+    ════════════════════════════════════════ -->
+    <div id="pdf-progress" style="
+        display: none;
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,0.45);
+        z-index: 10000;
+        align-items: center; justify-content: center;
+        flex-direction: column; gap: 12px;
+    ">
+        <div style="
+            background: var(--bs-body-bg);
+            color: var(--bs-body-color);
+            border: 1px solid var(--bs-border-color);
+            border-radius: 8px;
+            padding: 24px 36px;
+            font-family: system-ui, sans-serif;
+            font-size: 0.95rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+            display: flex; align-items: center; gap: 14px;
+        ">
+            <div class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></div>
+            <span id="pdf-progress-text">Building PDF…</span>
+        </div>
+    </div>
+    <!-- Off-screen canvas scratch area used by the PDF engine -->
+    <div id="pdf-render-root" style="position:fixed;left:-9999px;top:-9999px;visibility:hidden;" aria-hidden="true"></div>
+
+</div><!-- /#app -->
+
+<!-- ════════════════════════════════════════
+     CODEMIRROR 6 (ESM module)
+════════════════════════════════════════ -->
+<script type="module" src="common-codemirror.js"></script>
+
+<!-- ════════════════════════════════════════
+     SCRIPTS
+════════════════════════════════════════ -->
+<script src="common-local-storage.js"></script>
+<script src="common-layout.js"></script>
+<script src="common-input-output-markdown.js"></script>
+<script src="common-input-output.js"></script>
+<script src="common-markdown.js"></script>
+<script>
+
+    /* ── Toolbar / theme ── */
+    function toggleTheme()         { Toolbar.toggleTheme(); }
+    function toggleSidebar()       { Layout.toggleSidebar(); }
+    function setViewMode(mode)     { Layout.setViewMode(mode); }
+    function toggleWrap()          { Layout.toggleWrap(); }
+    function toggleHighlight()     { Layout.toggleHighlight(); }
+    function toggleSyncScroll()    { Layout.toggleSyncScroll(); }
+    function statusStorage()       { Store.statusStorage(); }
+    function deleteLocalStorage()  { Store.deleteLocalStorage(); }
+
+    /* ── I/O ── */
+    /* loadFile, download, exportJson, exportHtml, copyClipboard, copyHtml
+       are globals from common-input-output.js — no wrappers needed.        */
+
+    /* exportPdf() is also a global from common-input-output.js; it delegates
+       to the PDF engine in common-input-output-markdown.js.
+       The toolbar button that triggers it should use:
+         onclick="exportPdf()"  id="btn-pdf"
+       The id is required by the PDF engine for its loading-state CSS class.  */
+
+    /* fmt, fmtLine, fmtBlock, insertText, insertLink are declared as globals
+       in common-markdown.js and called directly by toolbar onclick attributes —
+       no wrappers needed here. */
+
+    /* ── Init ── */
+    document.addEventListener('DOMContentLoaded', () => {
+        // Restore config from storage
+        const cfg = Store.loadConfig();
+        document.documentElement.setAttribute('data-bs-theme', cfg.theme);
+
+        Toolbar.init('toolbar.json').then(() => {
+            Layout.init();
+            Sidebar.init();
+            CommonMd.init();
+
+            // Refresh status indicators once toolbar is built
+            Store.statusStorage();
+            Store.statusLines();
+            Store.statusWords();
+            Store.isSaved();
+        });
+
+        // Auto-save active doc content on every editor change
+        Store.on('doc:loaded', () => { Store.statusStorage(); Store.isSaved(); });
+        Store.on('doc:saved',  () => { Store.statusStorage(); Store.isSaved(); });
+        Store.on('doc:deleted',() => { Store.statusStorage(); Store.isSaved(); });
+
+        Store.startPolling();
+    });
+</script>
+
+</body>
+</html>
