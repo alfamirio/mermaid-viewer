@@ -364,8 +364,8 @@ window.Layout = (() => {
 
         // Swap row 2 only — row 1 is identical for both modes
         const row2Json = next === 'mermaid'
-            ? 'toolbar/toolbar-mermaid.json'
-            : 'toolbar/toolbar-markdown.json';
+            ? 'toolbar/toolbar-mermaid-row2.json'
+            : 'toolbar/toolbar.json';           // full JSON: initRow2 filters to row:2 entries
         Toolbar.initRow2(row2Json);
 
         _syncEditorModeButton(next);
@@ -381,8 +381,7 @@ window.Layout = (() => {
         const btn = document.getElementById('btn-editor-mode');
         if (!btn) return;
         const isMermaid = mode === 'mermaid';
-        // Button text shows the CURRENT active mode; active class is set when mermaid is on
-        btn.textContent = isMermaid ? '◈ Mermaid' : '◇ Markdown';
+        btn.textContent = isMermaid ? '◇ Markdown' : '◈ Mermaid';
         btn.title       = isMermaid ? 'Switch to Markdown mode' : 'Switch to Mermaid diagram mode';
         btn.classList.toggle('btn-toolbar-active', isMermaid);
     }

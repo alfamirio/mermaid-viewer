@@ -1,0 +1,6 @@
+sequenceDiagram
+    participant A
+    participant B
+    A->>B: Request
+    B-->>A: Response
+

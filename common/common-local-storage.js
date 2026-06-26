@@ -548,7 +548,7 @@
                     if (doc) loadIntoEditor(doc.content);
                 } else if (_getIndex().length === 0) {
                     // No docs at all — create the default README from template.md
-                    fetch('template.md')
+                    fetch('templates/template-markdown.md')
                         .then(r => r.ok ? r.text() : '')
                         .catch(() => '')
                         .then(content => {
@@ -610,7 +610,7 @@
      */
     function newDocFromTemplateMd(type) {
         autoSave();
-        fetch(type == 'mermaid' ? 'template-mermaid.md' : 'template-markdown.md')
+        fetch(type == 'mermaid' ? 'templates/template-mermaid.md' : 'templates/template-markdown.md')
             .then(r => r.ok ? r.text() : '')
             .catch(() => '')
             .then(content => {
@@ -713,7 +713,26 @@
     function deleteLocalStorage() {
         if (!confirm('Delete ALL documents and settings from local storage?')) return;
         nukeStorage();
-        newDocFromTemplateMd();
+        // Write defaults back so editorMode is explicitly 'markdown' in storage
+        lsSet(KEY_CONFIG, { ...CONFIG_DEFAULTS });
+        // Re-sync all toolbar buttons to match fresh defaults (markdown mode)
+        if (window.Layout) Layout.init();
+        // initRow2 is async — re-sync the mode button AFTER it finishes so the
+        // freshly-built row-2 DOM reflects markdown mode, not whatever was active before.
+        const row2Promise = (window.Toolbar)
+            ? Toolbar.initRow2('toolbar/toolbar-markdown.json')
+            : Promise.resolve();
+        row2Promise.then(() => {
+            // Force the row-1 mode button to show markdown regardless of any
+            // listener that may have fired during the async gap.
+            const btn = document.getElementById('btn-editor-mode');
+            if (btn) {
+                btn.textContent = '◇ Markdown';
+                btn.title       = 'Switch to Mermaid diagram mode';
+                btn.classList.remove('btn-toolbar-active');
+            }
+        });
+        newDocFromTemplateMd('markdown');
         statusStorage();
         isSaved();
     }

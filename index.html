@@ -552,7 +552,66 @@
     ════════════════════════════════════════ -->
     <div id="toolbar">
         <div id="toolbar-row-1">
-            <span class="me-1">// md viewer</span>
+
+            <!-- Viewer group -->
+            <div class="toolbar-group">
+                <button class="btn btn-info btn-sm" id="btn-github" onclick="window.open('https://github.com/')">GitHub</button>
+                <button class="btn btn-info btn-sm" id="btn-import" onclick="loadFile()">↑ Import</button>
+                <button class="btn btn-info btn-sm" id="btn-export" onclick="download()">↓ Export</button>
+                <button class="btn btn-info btn-sm" id="btn-json"   onclick="exportJson()">↓ JSON</button>
+                <button class="btn btn-info btn-sm" id="btn-html"   onclick="exportHtml()">↓ HTML</button>
+                <button class="btn btn-info btn-sm" id="btn-pdf"    onclick="exportPdf()">↓ PDF</button>
+                <button class="btn btn-info btn-sm" id="btn-webp"   onclick="exportMermaidWebp()">↓ WEBP</button>
+                <button class="btn btn-info btn-sm" id="btn-png"    onclick="exportMermaidPng()">↓ PNG</button>
+                <button class="btn btn-info btn-sm" id="btn-copy"   onclick="copyClipboard()">Copy</button>
+            </div>
+
+            <div class="toolbar-sep"></div>
+
+            <!-- View toggle group -->
+            <div class="toolbar-group">
+                <button class="btn btn-outline-info btn-sm" id="btn-view-editor"  onclick="setViewMode('editor')">Editor</button>
+                <button class="btn btn-outline-info btn-sm" id="btn-view-both"    onclick="setViewMode('both')">Both</button>
+                <button class="btn btn-outline-info btn-sm" id="btn-view-preview" onclick="setViewMode('preview')">Preview</button>
+            </div>
+
+            <div class="toolbar-sep"></div>
+
+            <!-- Toggle group -->
+            <div class="toolbar-group">
+                <button class="btn btn-outline-danger btn-sm" id="btn-sidebar"       onclick="toggleSidebar()">Sidebar</button>
+                <button class="btn btn-outline-danger btn-sm" id="btn-theme-toolbar" onclick="toggleTheme()">☀ Light</button>
+            </div>
+
+            <div class="toolbar-sep"></div>
+
+            <!-- Mode toggle group -->
+            <div class="toolbar-group">
+                <button class="btn btn-outline-warning btn-sm" id="btn-editor-mode" onclick="toggleEditorMode()">◇ Markdown</button>
+            </div>
+
+            <div class="toolbar-sep"></div>
+
+            <!-- Config toggle group -->
+            <div class="toolbar-group">
+                <button class="btn btn-outline-success btn-sm" id="btn-highlight"   onclick="toggleHighlight()">Highlight</button>
+                <button class="btn btn-outline-success btn-sm" id="btn-sync-scroll" onclick="toggleSyncScroll()">Sync Scroll</button>
+            </div>
+
+            <!-- Spacer -->
+            <div class="toolbar-spacer"></div>
+
+            <div class="toolbar-sep"></div>
+
+            <!-- Status group -->
+            <div class="toolbar-group">
+                <span class="badge bg-secondary toolbar-status-badge" id="status-storage"><span class="stat-label">Storage</span><span class="stat-value"></span></span>
+                <span class="badge bg-secondary toolbar-status-badge" id="status-lines"><span class="stat-label">Lines</span><span class="stat-value"></span></span>
+                <span class="badge bg-secondary toolbar-status-badge" id="status-words"><span class="stat-label">Words</span><span class="stat-value"></span></span>
+                <span class="badge bg-secondary toolbar-status-badge" id="status-saved"><span class="stat-label">Saved</span><span class="stat-value"></span></span>
+                <button class="btn btn-danger btn-sm" id="status-delete-localstorage" onclick="deleteLocalStorage()">🗑 Delete</button>
+            </div>
+
         </div>
         <div id="toolbar-row-2"></div>
     </div>
@@ -627,17 +686,17 @@
 <!-- ════════════════════════════════════════
      CODEMIRROR 6 (ESM module)
 ════════════════════════════════════════ -->
-<script type="module" src="common-codemirror.js"></script>
+<script type="module" src="common/common-codemirror.js"></script>
 
 <!-- ════════════════════════════════════════
      SCRIPTS
 ════════════════════════════════════════ -->
-<script src="common-local-storage.js"></script>
-<script src="common-layout.js"></script>
-<script src="common-input-output-markdown.js"></script>
-<script src="common-input-output-mermaid.js"></script>
-<script src="common-input-output.js"></script>
-<script src="common-markdown.js"></script>
+<script src="common/common-local-storage.js"></script>
+<script src="common/common-layout.js"></script>
+<script src="common/common-input-output-markdown.js"></script>
+<script src="common/common-input-output-mermaid.js"></script>
+<script src="common/common-input-output.js"></script>
+<script src="common/common-markdown.js"></script>
 <script>
 
     /* ── Toolbar / theme ── */
@@ -671,7 +730,12 @@
         const cfg = Store.loadConfig();
         document.documentElement.setAttribute('data-bs-theme', cfg.theme);
 
-        Toolbar.init('toolbar.json').then(() => {
+        // Load row 2 toolbar for the persisted editor mode (default: markdown)
+        const row2Json = cfg.editorMode === 'mermaid'
+            ? 'toolbar/toolbar-mermaid.json'
+            : 'toolbar/toolbar-markdown.json';
+
+        Toolbar.initRow2(row2Json).then(() => {
             Layout.init();
             Sidebar.init();
             CommonMd.init();
